@@ -1,6 +1,6 @@
 """
 This test script was written by Claude 4 Sonnet.
-I am currently investigating the tests and making sure they work.
+And updated by me.
 """
 import pytest
 import torch
