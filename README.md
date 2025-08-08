@@ -1,7 +1,5 @@
 # Encoder-Decoder Production
 
-# Note: This code has not been tested lately to make sure it is in full running order. I am working on making sure it is all good. I will delete this note when everything has been set to rights.
-
 In this project I am taking the Frick encoder-decoder tutorial and making changes to
 bring it in line with a production-level code repo, which includes doing the following:
 
