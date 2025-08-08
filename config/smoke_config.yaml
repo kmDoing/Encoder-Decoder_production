@@ -1,0 +1,7 @@
+emb_dim: 256
+max_text_length: 20
+max_summary_length: 10
+text_heads: 8
+text_layers: 6
+epochs: 4
+lr: 5e-5
