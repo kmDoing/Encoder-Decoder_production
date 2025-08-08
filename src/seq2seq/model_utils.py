@@ -3,11 +3,11 @@ This script provides utilities for creating and training an encoder-decoder mode
 """
 import torch
 import torch.nn.functional as F
-import optim
+from torch import optim
 import tqdm
 import numpy as np
 
-from data.data_utils import sumTokenizer
+from data.data_utils import SumTokenizer
 from src.seq2seq.encoder_decoder import EncoderDecoder
 
 
@@ -23,7 +23,7 @@ def create_model(config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device: ", device, f"({torch.cuda.get_device_name(device)})" if torch.cuda.is_available() else "")
 
-    tokenizer = sumTokenizer(config['max_text_length'], config['max_summary_length'])
+    tokenizer = SumTokenizer(config['max_text_length'], config['max_summary_length'])
     model = EncoderDecoder(
         vocab_size=tokenizer.vocab_size,
         emb_dim=config['emb_dim'],
@@ -50,13 +50,13 @@ def train_model(config, model, device, train_loader, smoke=False,
     :param model_name: name for model file (not for smoke)
     :return: model: trained model
     """
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
+    optimizer = optim.Adam(model.parameters(), lr=float(config['lr']))
     loss_history = []
     scaler = torch.amp.GradScaler("cuda")
 
     for epoch in range(config['epochs']):
         model.train()  # Ensure model is in training mode
-        progress_bar = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{config['epochs']}")
+        progress_bar = tqdm.tqdm(train_loader, desc=f"Epoch {epoch + 1}/{config['epochs']}")
         for batch_idx, batch in enumerate(progress_bar):
             input_ids = batch["input_ids"].to(device)
             src_mask = batch["input_mask"].to(device)

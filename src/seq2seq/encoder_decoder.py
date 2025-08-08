@@ -5,11 +5,6 @@
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import numpy as np
-
-from tqdm import tqdm
 
 
 class PositionalEmbedding(nn.Module):
@@ -120,7 +115,7 @@ class AttentionHead(nn.Module):
 
         # Applying causal mask for decoder's masked MHA
         if self.causal:
-            c_mask = torch.tril(torch.ones(T, T, device=x.device))  # is broadcastable with attention (B, T, T)
+            c_mask = torch.tril(torch.ones(T, T, device=input_val.device))  # is broadcastable with attention (B, T, T)
             attention = attention.masked_fill(c_mask == 0, float("-inf"))
 
         attention = torch.softmax(attention, dim=-1)
@@ -362,7 +357,7 @@ class TextEncoder(nn.Module):
 
 
 class TextDecoder(nn.Module):
-        """ Creates the TextDecoder module of the encoder-decoder transformer
+    """ Creates the TextDecoder module of the encoder-decoder transformer
 
         This class creates the text decoder side. It puts together a layered structure, which
         takes input, adds the positional embeddings, drops out some nodes (sets their activation
@@ -379,6 +374,7 @@ class TextDecoder(nn.Module):
         Example
             self.decoder = TextDecoder(vocab_size, emb_dim, max_summary_length, n_heads, n_layers)
     """
+    
     def __init__(self, vocab_size, emb_dim, max_seq_length, n_heads, n_layers, dropout=0.1):
         """
         :param: vocab_size: the size of the vocabulary
@@ -422,7 +418,7 @@ class TextDecoder(nn.Module):
 
 
 class EncoderDecoder(nn.Module):
-        """ Creates the EncoderDecoder transformer
+    """ Creates the EncoderDecoder transformer
 
         This class puts everything together creating the encoder-decoder transformer. 
 

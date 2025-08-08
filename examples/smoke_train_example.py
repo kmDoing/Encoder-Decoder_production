@@ -4,12 +4,11 @@ This script demonstrates a smoke training run of the encoder-decoder model
 import yaml
 from src.seq2seq.model_utils import create_model, train_model
 from src.seq2seq.eval_utils import test_model, plot_loss_history, score_model
+import logging
+
 
 data_ty = 'smoke'
-from data.smoke_data import get_data_loaders
-
-import logging
-import mylib
+from data.smoke_data import create_smoke_loaders
 logger = logging.getLogger(__name__)
 
 
@@ -29,15 +28,15 @@ def main():
     try:
         if config['emb_dim'] % config['n_heads'] != 0:
             raise ValueError("emb_dim must be divisible by n_heads")
-        except ValueError as e:
-            logger.error(f"Invalid number of attention heads: {config['n_heads']}, error: {e}")
+    except ValueError as e:
+        logger.error(f"Invalid number of attention heads: {config['n_heads']}, error: {e}")
             
     # Get the data as a train_loader
-    train_loader, val_loader, test_loader = get_data_loaders()
+    train_loader, val_loader, test_loader = create_smoke_loaders(config)
 
     model, device, tokenizer = create_model(config)
 
-    model = train_model(config, model, device, train_loader, smoke=False,
+    model = train_model(config, model, device, train_loader, smoke=True,
                         val_loader=None, model_name='test')
 
     # Testing the model on a batch from the train loader (seen example)

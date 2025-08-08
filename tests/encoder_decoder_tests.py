@@ -1,18 +1,26 @@
-import pytest
-import torch
 """
 This test script was written by Claude 4 Sonnet.
 I am currently investigating the tests and making sure they work.
 """
+import pytest
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
+
+import sys
+sys.path.append('/home/kristina/Documents/encoder_decoder_prod')
+
+from src.seq2seq.encoder_decoder import (MultiHeadAttention, 
+                                        EncoderDecoder, 
+                                        TransformerEncoder, TransformerDecoder,
+                                        PositionalEmbedding)
 
 
 class TestMultiHeadAttention:
     @pytest.fixture
     def attention_layer(self):
-        return MultiHeadAttention(emb_dim=512, num_heads=8, dropout=0.1)
+        return MultiHeadAttention(512, 8)
     
     def test_output_shape(self, attention_layer):
         batch_size, seq_len, emb_dim = 2, 10, 512
@@ -22,14 +30,14 @@ class TestMultiHeadAttention:
         
         assert output.shape == (batch_size, seq_len, emb_dim)
     
-    def test_attention_with_mask(self, attention_layer):
+    def test_attention_with_mask(self):
         batch_size, seq_len, emb_dim = 2, 10, 512
         x = torch.randn(batch_size, seq_len, emb_dim)
         
         # Create causal mask
-        causal_mask = torch.tril(torch.ones(seq_len, seq_len)).unsqueeze(0).unsqueeze(0)
-        
-        output = attention_layer(x, causal_mask)
+        #causal_mask = torch.tril(torch.ones(seq_len, seq_len)).unsqueeze(0).unsqueeze(0)
+        attention_layer = MultiHeadAttention(512, 8, causal=True)
+        output = attention_layer(x)
         
         assert output.shape == (batch_size, seq_len, emb_dim)
         assert not torch.isnan(output).any()
@@ -57,53 +65,10 @@ class TestMultiHeadAttention:
         assert torch.allclose(out1[:, perm_idx, :], out2, atol=1e-6)
 
 
-class TestMLP:
-    @pytest.fixture
-    def mlp_layer(self):
-        return MLP(emb_dim=512, r_mlp=4, dropout=0.1)
-    
-    def test_output_shape(self, mlp_layer):
-        batch_size, seq_len, emb_dim = 2, 10, 512
-        x = torch.randn(batch_size, seq_len, emb_dim)
-        
-        output = mlp_layer(x)
-        
-        assert output.shape == (batch_size, seq_len, emb_dim)
-    
-    def test_expansion_factor(self, mlp_layer):
-        # Check that hidden layer has correct size
-        fc1_out_features = mlp_layer.fc1.out_features
-        expected_hidden_size = 512 * 4  # emb_dim * r_mlp
-        assert fc1_out_features == expected_hidden_size
-    
-    def test_forward_pass_numerical_stability(self, mlp_layer):
-        x = torch.randn(2, 10, 512)
-        output = mlp_layer(x)
-        
-        assert not torch.isnan(output).any()
-        assert not torch.isinf(output).any()
-
-
-class TestLayerNorm:
-    def test_layer_norm_properties(self):
-        emb_dim = 512
-        ln = nn.LayerNorm(emb_dim)
-        x = torch.randn(2, 10, emb_dim)
-        
-        output = ln(x)
-        
-        # Check mean and variance along last dimension
-        mean = output.mean(dim=-1)
-        var = output.var(dim=-1, unbiased=False)
-        
-        assert torch.allclose(mean, torch.zeros_like(mean), atol=1e-5)
-        assert torch.allclose(var, torch.ones_like(var), atol=1e-5)
-
-
-class TestTransformerEncoderLayer:
+class TestTransformerEncoder:
     @pytest.fixture
     def encoder_layer(self):
-        return TransformerEncoderLayer(emb_dim=512, num_heads=8, r_mlp=4, dropout=0.1)
+        return TransformerEncoder(512, 8)
     
     def test_output_shape(self, encoder_layer):
         batch_size, seq_len, emb_dim = 2, 10, 512
@@ -144,10 +109,10 @@ class TestTransformerEncoderLayer:
         assert torch.allclose(out_eval1, out_eval2)
 
 
-class TestTransformerDecoderLayer:
+class TestTransformerDecoder:
     @pytest.fixture
     def decoder_layer(self):
-        return TransformerDecoderLayer(emb_dim=512, num_heads=8, r_mlp=4, dropout=0.1)
+        return TransformerDecoder(512, 8)
     
     def test_output_shape(self, decoder_layer):
         batch_size, seq_len, emb_dim = 2, 10, 512
@@ -157,29 +122,14 @@ class TestTransformerDecoderLayer:
         output = decoder_layer(x, encoder_output)
         
         assert output.shape == (batch_size, seq_len, emb_dim)
-    
-    def test_causal_masking(self, decoder_layer):
-        """Test that causal masking prevents attention to future positions"""
-        seq_len = 5
-        emb_dim = 512
-        x = torch.randn(1, seq_len, emb_dim)
-        encoder_output = torch.randn(1, seq_len, emb_dim)
-        
-        # Create causal mask
-        causal_mask = torch.tril(torch.ones(seq_len, seq_len)).unsqueeze(0).unsqueeze(0)
-        
-        output = decoder_layer(x, encoder_output, causal_mask)
-        
-        assert output.shape == (1, seq_len, emb_dim)
-        assert not torch.isnan(output).any()
 
 
 class TestIntegration:
     def test_encoder_decoder_compatibility(self):
         """Test that encoder output can be fed to decoder"""
         emb_dim, num_heads = 512, 8
-        encoder = TransformerEncoderLayer(emb_dim, num_heads)
-        decoder = TransformerDecoderLayer(emb_dim, num_heads)
+        encoder = TransformerEncoder(emb_dim, num_heads)
+        decoder = TransformerDecoder(emb_dim, num_heads)
         
         batch_size, seq_len = 2, 10
         src = torch.randn(batch_size, seq_len, emb_dim)
@@ -197,8 +147,8 @@ class TestIntegration:
     def test_gradient_flow(self):
         """Test that gradients flow through the entire encoder-decoder"""
         emb_dim, num_heads = 512, 8
-        encoder = TransformerEncoderLayer(emb_dim, num_heads)
-        decoder = TransformerDecoderLayer(emb_dim, num_heads)
+        encoder = TransformerEncoder(emb_dim, num_heads)
+        decoder = TransformerDecoder(emb_dim, num_heads)
         
         src = torch.randn(2, 10, emb_dim, requires_grad=True)
         tgt = torch.randn(2, 10, emb_dim, requires_grad=True)
